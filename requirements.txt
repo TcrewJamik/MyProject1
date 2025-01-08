@@ -1,8 +1,5 @@
-streamlit>=1.28.0   # Keep your existing Streamlit version
-pandas>=1.5.0      # Keep your existing Pandas version (adjust if needed)
-numpy==1.23.0      # Specify a compatible NumPy version (important!)
-scikit-learn>=1.3.0 # Keep your existing Scikit-learn version (adjust if needed)
-plotly==5.24.1     # Keep your existing Plotly version
-catboost==1.2.2     # Keep this version
-setuptools<75.8.0   # Constrain Setuptools to a version known to work
-PyYAML<6.0      # Constrain PyYAML to a version known to work
+numpy>=1.23.0
+catboost
+scikit-learn
+pandas
+streamlit
