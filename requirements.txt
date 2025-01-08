@@ -3,4 +3,4 @@ pandas
 numpy
 scikit-learn
 plotly
-catboost
+catboost==1.2.2
