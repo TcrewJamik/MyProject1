@@ -1,5 +1,5 @@
 import streamlit as st
-import streamlit.components.v1 as stc
+import warnings 
 import pandas as pd
 import plotly.express as px
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -9,6 +9,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from catboost import CatBoostClassifier
 import numpy as np
+
+warnings.filterwarnings("ignore", message = "numpy.dtype size changed")
+warnings.filterwarnings("ignore", message = "numpy.ufunc size changed")
 
 st.title('🌦️ Предсказание погоды')
 
