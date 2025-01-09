@@ -97,7 +97,7 @@ input_df = pd.DataFrame(data, index=[0])
 
 # Обработка данных (One-Hot Encoding и масштабирование)
 # One-Hot Encoding для категориальных признаков
-ohe = OneHotEncoder(handle_unknown='ignore', sparse=False)
+ohe = OneHotEncoder(handle_unknown='ignore')
 encoded_categorical_features = ohe.fit_transform(df[categorical_features])
 encoded_input_categorical = ohe.transform(input_df[categorical_features])
 
