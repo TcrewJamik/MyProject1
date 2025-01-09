@@ -5,4 +5,7 @@ catboost==1.1
 scikit-learn==1.2.2
 streamlit==1.26.0
 
+pip uninstall -y numpy catboost
+pip cache purge
+pip install numpy==1.21.6 catboost==1.1
 
