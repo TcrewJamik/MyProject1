@@ -15,8 +15,8 @@ st.title('🌦️ Предсказание погоды')
 st.write('Здесь мы обучим модель машинного обучения для предсказания типа погоды.')
 
 # --- Загрузка данных ---
-file_path = https://raw.githubusercontent.com/TcrewJamik/MyProject1/refs/heads/master/weather_classification_data.csv
-df = pd.read_file(file_path)
+file_path = r""
+df = pd.read_csv(file_path)
 
 with st.expander('Данные'):
     st.write("X")
