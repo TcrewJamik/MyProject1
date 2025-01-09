@@ -1,5 +1,4 @@
 import streamlit as st
-import warnings 
 import pandas as pd
 import plotly.express as px
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -10,8 +9,6 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from catboost import CatBoostClassifier
 import numpy as np
 
-warnings.filterwarnings("ignore", message = "numpy.dtype size changed")
-warnings.filterwarnings("ignore", message = "numpy.ufunc size changed")
 
 st.title('🌦️ Предсказание погоды')
 
