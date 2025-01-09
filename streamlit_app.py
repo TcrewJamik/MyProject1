@@ -126,6 +126,14 @@ with st.expander('Предобработка данных'):
 # --- Обучение модели ---
 st.subheader('Обучение модели')
 
+# Проверка типов данных
+st.write('Типы данных X_train и y_train:')
+st.write(X_train.dtypes)
+st.write(y_train.dtype)
+
+# Преобразуем y_train в одномерный массив, если это необходимо
+y_train = np.ravel(y_train)
+
 # Задание параметров напрямую
 param_rf = {
     'n_estimators': 50,
@@ -175,21 +183,3 @@ best_model = models[best_model_name]
 best_accuracy = model_accuracies[best_model_name]
 
 st.write(f"**Лучшая модель:** {best_model_name} с точностью {best_accuracy:.4f}")
-
-# --- Прогнозирование ---
-prediction = best_model.predict(input_row)
-prediction_proba = best_model.predict_proba(input_row)
-
-# --- Вывод результатов ---
-st.subheader('Результаты прогнозирования')
-
-# Печать вероятностей для каждого класса погоды
-df_prediction_proba = pd.DataFrame(prediction_proba, columns=label_encoder.classes_)
-
-st.write('**Вероятности для каждого класса погоды:**')
-st.dataframe(df_prediction_proba)
-
-# Прогнозируемый тип погоды
-predicted_weather_type = label_encoder.classes_[prediction[0]]
-
-st.success(f"Прогнозируемый тип погоды: **{predicted_weather_type}**") 
