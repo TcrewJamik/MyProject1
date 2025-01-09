@@ -33,12 +33,12 @@ with st.sidebar:
     humidity = st.slider('Humidity', 20, 100, 60)
     wind_speed = st.slider('Wind Speed', 0.0, 25.0, 5.0)
     precipitation = st.slider('Precipitation (%)', 0.0, 100.0, 0.0)
-    cloud_cover = st.selectbox('Cloud Cover', ('partly cloudy', 'sunny', 'cloudy'))
+    cloud_cover = st.selectbox('Cloud Cover', ('partly cloudy', 'clear', 'overcast', 'cloudy'))
     atmospheric_pressure = st.slider('Atmospheric Pressure', 980.0, 1030.0, 1013.0)
     uv_index = st.slider('UV Index', 0, 10, 2)
     season = st.selectbox('Season', ('Spring', 'Summer', 'Autumn', 'Winter'))
     visibility = st.slider('Visibility (km)', 0.0, 20.0, 10.0)
-    location = st.selectbox('Location', ('London', 'New York', 'Tokyo', 'Sydney', 'Dubai'))
+    location = st.selectbox('Location', ('inland', 'mountain', 'coastal'))
 
 # --- Визуализация данных ---
 st.subheader('Визуализация данных')
