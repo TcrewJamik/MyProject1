@@ -3,18 +3,16 @@ import pandas as pd
 import plotly.express as px
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from catboost import CatBoostClassifier
 import numpy as np
-from sklearn.model_selection import cross_val_score
 
 st.title('🌦️ Предсказание погоды')
 
 st.write('Здесь мы обучим модель машинного обучения для предсказания типа погоды.')
 
-# --- Загрузка данных ---
+# Загрузка данных
 file_path = r"https://raw.githubusercontent.com/TcrewJamik/MyProject1/refs/heads/master/weather_classification_data.csv"
 df = pd.read_csv(file_path)
 
@@ -27,7 +25,7 @@ with st.expander('Данные'):
     y_raw = df['Weather Type']
     st.dataframe(y_raw)
 
-# --- Боковая панель ---
+# Боковая панель
 with st.sidebar:
     st.header("Введите признаки погоды: ")
     temperature = st.slider('Temperature', -25.0, 45.0, 15.0)
@@ -41,7 +39,7 @@ with st.sidebar:
     visibility = st.slider('Visibility (km)', 0.0, 20.0, 10.0)
     location = st.selectbox('Location', ('London', 'New York', 'Tokyo', 'Sydney', 'Dubai'))
 
-# --- Визуализация данных ---
+# Визуализация данных
 st.subheader('Визуализация данных')
 
 fig = px.scatter(
@@ -61,9 +59,8 @@ fig2 = px.histogram(
 )
 st.plotly_chart(fig2)
 
-# --- Предобработка данных ---
-
-# 1. Обработка выбросов (ограничение 99-м процентилем)
+# Предобработка данных
+# 1. Обработка выбросов
 for col in ['Temperature', 'Humidity', 'Precipitation (%)', 'Atmospheric Pressure']:
     cap = df[col].quantile(0.99)
     df[col] = df[col].clip(upper=cap)
@@ -76,14 +73,14 @@ X = df.drop('Weather Type', axis=1)
 label_encoder = LabelEncoder()
 y = label_encoder.fit_transform(y)
 
-# 4. Разделение данных (только для обучения модели)
+# 4. Разделение данных
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # 5. Подготовка числовых и категориальных признаков
 numerical_features = ['Temperature', 'Humidity', 'Wind Speed', 'Precipitation (%)', 'Atmospheric Pressure', 'UV Index', 'Visibility (km)']
 categorical_features = ['Cloud Cover', 'Season', 'Location']
 
-# --- Создание входного датафрейма ---
+# Создание входного датафрейма
 data = {
     'Temperature': temperature,
     'Humidity': humidity,
@@ -98,79 +95,31 @@ data = {
 }
 input_df = pd.DataFrame(data, index=[0])
 
-# --- Предобработка входных данных и X ---
-
+# Обработка данных (One-Hot Encoding и масштабирование)
 # One-Hot Encoding для категориальных признаков
-ohe = OneHotEncoder(handle_unknown='ignore')
-encoded_categorical_features = ohe.fit_transform(df[categorical_features]).toarray()
-X_encoded = pd.DataFrame(encoded_categorical_features, columns=ohe.get_feature_names_out(categorical_features))
-X = pd.concat([df[numerical_features].reset_index(drop=True), X_encoded], axis=1)
-
-encoded_input_categorical = ohe.transform(input_df[categorical_features]).toarray()
-input_encoded = pd.DataFrame(encoded_input_categorical, columns=ohe.get_feature_names_out(categorical_features))
-input_row = pd.concat([input_df[numerical_features].reset_index(drop=True), input_encoded], axis=1)
+ohe = OneHotEncoder(handle_unknown='ignore', sparse=False)
+encoded_categorical_features = ohe.fit_transform(df[categorical_features])
+encoded_input_categorical = ohe.transform(input_df[categorical_features])
 
 # Масштабирование числовых признаков
 scaler = StandardScaler()
-X[numerical_features] = scaler.fit_transform(X[numerical_features])
-input_row[numerical_features] = scaler.transform(input_row[numerical_features]) # применяем к входящим данным
+scaled_numerical_features = scaler.fit_transform(df[numerical_features])
+scaled_input_numerical = scaler.transform(input_df[numerical_features])
 
-with st.expander('Предобработка данных'):
-    st.write('**Входные данные (новая строка)**')
-    st.dataframe(input_row)
-    st.write('**Объединенные данные (входные данные + исходные данные)**')
-    st.dataframe(pd.concat([input_row, pd.DataFrame(X, columns=input_row.columns)], axis=0))
-    st.write('**Целевая переменная (y)**')
-    st.write(y)
+# Объединение обработанных признаков
+X_processed = np.hstack([scaled_numerical_features, encoded_categorical_features])
+input_processed = np.hstack([scaled_input_numerical, encoded_input_categorical])
 
-# --- Обучение модели ---
+# Обучение модели
 st.subheader('Обучение модели')
 
-# Определение моделей с фиксированными гиперпараметрами
-rf_model = RandomForestClassifier(
-    bootstrap=True, max_depth=None, min_samples_leaf=1, min_samples_split=2, n_estimators=50, random_state=42
-)
-knn_model = KNeighborsClassifier(metric='manhattan', n_neighbors=5, weights='distance')
-catboost_model = CatBoostClassifier(depth=6, iterations=100, l2_leaf_reg=3, learning_rate=0.2, random_seed=42, logging_level='Silent')
-
-# Обучение моделей
-rf_model.fit(X_train, y_train)
-knn_model.fit(X_train, y_train)
-catboost_model.fit(X_train, y_train)
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_processed, y)
 
 # Прогнозирование
-prediction_rf = rf_model.predict(input_row)
-prediction_knn = knn_model.predict(input_row)
-prediction_catboost = catboost_model.predict(input_row)
+prediction_rf = rf_model.predict(input_processed)
 
 # Вывод результатов
 st.subheader('Результаты прогнозирования')
-
-# Прогнозируемый тип погоды для каждой модели
-weather_types = label_encoder.classes_
-
-predicted_weather_rf = weather_types[prediction_rf[0]]
-predicted_weather_knn = weather_types[prediction_knn[0]]
-predicted_weather_catboost = weather_types[prediction_catboost[0]]
-
-st.write(f"**Random Forest Прогноз**: {predicted_weather_rf}")
-st.write(f"**K-Nearest Neighbors Прогноз**: {predicted_weather_knn}")
-st.write(f"**CatBoost Прогноз**: {predicted_weather_catboost}")
-
-# Вероятности для каждого класса погоды
-prediction_proba_rf = rf_model.predict_proba(input_row)
-prediction_proba_knn = knn_model.predict_proba(input_row)
-prediction_proba_catboost = catboost_model.predict_proba(input_row)
-
-df_prediction_proba_rf = pd.DataFrame(prediction_proba_rf, columns=weather_types)
-df_prediction_proba_knn = pd.DataFrame(prediction_proba_knn, columns=weather_types)
-df_prediction_proba_catboost = pd.DataFrame(prediction_proba_catboost, columns=weather_types)
-
-st.write('**Вероятности для модели Random Forest:**')
-st.dataframe(df_prediction_proba_rf)
-
-st.write('**Вероятности для модели K-Nearest Neighbors:**')
-st.dataframe(df_prediction_proba_knn)
-
-st.write('**Вероятности для модели CatBoost:**')
-st.dataframe(df_prediction_proba_catboost)
+predicted_weather_rf = label_encoder.inverse_transform(prediction_rf)
+st.write(f"**Random Forest Прогноз**: {predicted_weather_rf[0]}")
