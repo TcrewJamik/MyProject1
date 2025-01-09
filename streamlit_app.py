@@ -1,15 +1,14 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score
 from catboost import CatBoostClassifier
 import numpy as np
 from sklearn.model_selection import cross_val_score
-
 
 st.title('🌦️ Предсказание погоды')
 
@@ -127,58 +126,55 @@ with st.expander('Предобработка данных'):
 # --- Обучение модели ---
 st.subheader('Обучение модели')
 
-# Определение параметров для Grid Search
-param_grid_rf = {
-    'n_estimators': [50, 100],
-    'max_depth': [None, 5, 10]
+# Задание параметров напрямую
+param_rf = {
+    'n_estimators': 50,
+    'max_depth': None,
+    'min_samples_leaf': 1,
+    'min_samples_split': 2,
+    'bootstrap': True
 }
-param_grid_knn = {
-    'n_neighbors': [3, 5, 7]
+param_knn = {
+    'metric': 'manhattan',
+    'n_neighbors': 5,
+    'weights': 'distance'
 }
-param_grid_catboost = {
-    'iterations': [50, 100],
-    'learning_rate': [0.01, 0.1],
-    'depth': [4, 6]
+param_catboost = {
+    'iterations': 100,
+    'learning_rate': 0.2,
+    'depth': 6,
+    'l2_leaf_reg': 3
 }
 
-# Base models
-base_rf = RandomForestClassifier(random_state=42)
-base_knn = KNeighborsClassifier()
-base_catboost = CatBoostClassifier(random_seed=42, logging_level='Silent')
+# Base models с заданными параметрами
+rf_model = RandomForestClassifier(**param_rf, random_state=42)
+knn_model = KNeighborsClassifier(**param_knn)
+catboost_model = CatBoostClassifier(**param_catboost, random_seed=42, logging_level='Silent')
 
-# Perform grid search for each model
-grid_search_rf = GridSearchCV(base_rf, param_grid_rf, cv=3, scoring='accuracy', n_jobs=-1)
-grid_search_rf.fit(X, y)
-
-grid_search_knn = GridSearchCV(base_knn, param_grid_knn, cv=3, scoring='accuracy', n_jobs=-1)
-grid_search_knn.fit(X, y)
-
-grid_search_catboost = GridSearchCV(base_catboost, param_grid_catboost, cv=3, scoring='accuracy', n_jobs=-1)
-grid_search_catboost.fit(X, y)
-
-# Find the best model based on accuracy
-best_rf = grid_search_rf.best_estimator_
-best_knn = grid_search_knn.best_estimator_
-best_catboost = grid_search_catboost.best_estimator_
-
+# Словарь моделей
 models = {
-    'Random Forest': best_rf,
-    'K-Nearest Neighbors': best_knn,
-    'CatBoost': best_catboost
+    'Random Forest': rf_model,
+    'K-Nearest Neighbors': knn_model,
+    'CatBoost': catboost_model
 }
 
-best_model_name = max(models, key=lambda k: cross_val_score(models[k], X, y, cv=3).mean())
-best_model = models[best_model_name]
-best_params = {}
-if best_model_name == 'Random Forest':
-    best_params = grid_search_rf.best_params_
-elif best_model_name == 'K-Nearest Neighbors':
-    best_params = grid_search_knn.best_params_
-elif best_model_name == 'CatBoost':
-    best_params = grid_search_catboost.best_params_
+# Обучаем все модели
+for name, model in models.items():
+    model.fit(X_train, y_train)
 
-st.write(f"**Лучшая модель:** {best_model_name}")
-st.write(f"**Лучшие параметры:** {best_params}")
+# Оценка моделей по точности
+model_accuracies = {}
+for name, model in models.items():
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    model_accuracies[name] = accuracy
+
+# Найдем лучшую модель
+best_model_name = max(model_accuracies, key=model_accuracies.get)
+best_model = models[best_model_name]
+best_accuracy = model_accuracies[best_model_name]
+
+st.write(f"**Лучшая модель:** {best_model_name} с точностью {best_accuracy:.4f}")
 
 # --- Прогнозирование ---
 prediction = best_model.predict(input_row)
@@ -187,28 +183,13 @@ prediction_proba = best_model.predict_proba(input_row)
 # --- Вывод результатов ---
 st.subheader('Результаты прогнозирования')
 
-# Assuming your label encoder has a classes_ attribute
-weather_types = label_encoder.classes_
-
-# Create a DataFrame for the prediction probabilities
-df_prediction_proba = pd.DataFrame(prediction_proba, columns=weather_types)
+# Печать вероятностей для каждого класса погоды
+df_prediction_proba = pd.DataFrame(prediction_proba, columns=label_encoder.classes_)
 
 st.write('**Вероятности для каждого класса погоды:**')
-st.dataframe(
-    df_prediction_proba,
-    column_config={
-        weather_type: st.column_config.ProgressColumn(
-            weather_type,
-            format='%f',
-            width='medium',
-            min_value=0,
-            max_value=1
-        ) for weather_type in weather_types
-    },
-    hide_index=True
-)
+st.dataframe(df_prediction_proba)
 
-# Map prediction index back to weather type name
-predicted_weather_type = weather_types[prediction[0]]
+# Прогнозируемый тип погоды
+predicted_weather_type = label_encoder.classes_[prediction[0]]
 
-st.success(f"Прогнозируемый тип погоды: **{predicted_weather_type}**")
+st.success(f"Прогнозируемый тип погоды: **{predicted_weather_type}**") 
