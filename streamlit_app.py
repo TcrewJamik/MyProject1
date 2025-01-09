@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from catboost import CatBoostClassifier
@@ -10,7 +11,7 @@ import numpy as np
 
 st.title('🌦️ Предсказание погоды')
 
-st.write('Здесь мы обучим модель машинного обучения для предсказания типа погоды.')
+st.write('Здесь мы обучим модели машинного обучения для предсказания типа погоды.')
 
 # --- Загрузка данных ---
 file_path = r"https://raw.githubusercontent.com/TcrewJamik/MyProject1/refs/heads/master/weather_classification_data.csv"
@@ -124,16 +125,59 @@ X_train[numerical_features] = scaler.fit_transform(X_train[numerical_features])
 X_test[numerical_features] = scaler.transform(X_test[numerical_features])
 input_row[numerical_features] = scaler.transform(input_row[numerical_features]) #применяем к входящим данным
 
-# --- Обучение модели ---
-st.subheader('Обучение модели')
+# --- Обучение моделей ---
+st.subheader('Обучение моделей')
 
-rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
-rf_model.fit(X_train, y_train)
+# Определение параметров для Grid Search
+param_grid_rf = {
+    'n_estimators': [50, 100],
+    'max_depth': [None, 5, 10]
+}
+param_grid_knn = {
+    'n_neighbors': [3, 5, 7]
+}
+param_grid_catboost = {
+    'iterations': [50, 100],
+    'learning_rate': [0.01, 0.1],
+    'depth': [4, 6]
+}
+
+# Base models
+base_rf = RandomForestClassifier(random_state=42)
+base_knn = KNeighborsClassifier()
+base_catboost = CatBoostClassifier(random_seed=42, logging_level='Silent')
+
+# Perform grid search for each model
+grid_search_rf = GridSearchCV(base_rf, param_grid_rf, cv=3, scoring='accuracy', n_jobs=-1)
+grid_search_rf.fit(X_train, y_train)
+
+grid_search_knn = GridSearchCV(base_knn, param_grid_knn, cv=3, scoring='accuracy', n_jobs=-1)
+grid_search_knn.fit(X_train, y_train)
+
+grid_search_catboost = GridSearchCV(base_catboost, param_grid_catboost, cv=3, scoring='accuracy', n_jobs=-1)
+grid_search_catboost.fit(X_train, y_train)
+
+# Find the best model based on accuracy
+best_rf = grid_search_rf.best_estimator_
+best_knn = grid_search_knn.best_estimator_
+best_catboost = grid_search_catboost.best_estimator_
 
 # --- Прогнозирование ---
-prediction_rf = rf_model.predict(input_row)
+prediction_rf = best_rf.predict(input_row)
+prediction_knn = best_knn.predict(input_row)
+prediction_catboost = best_catboost.predict(input_row)
 
 # --- Вывод результатов ---
 st.subheader('Результаты прогнозирования')
+
+# Random Forest
 predicted_weather_rf = label_encoder.inverse_transform(prediction_rf)
 st.write(f"**Random Forest Прогноз**: {predicted_weather_rf[0]}")
+
+# K-Nearest Neighbors
+predicted_weather_knn = label_encoder.inverse_transform(prediction_knn)
+st.write(f"**K-Nearest Neighbors Прогноз**: {predicted_weather_knn[0]}")
+
+# CatBoost
+predicted_weather_catboost = label_encoder.inverse_transform(prediction_catboost.ravel())
+st.write(f"**CatBoost Прогноз**: {predicted_weather_catboost[0]}")
