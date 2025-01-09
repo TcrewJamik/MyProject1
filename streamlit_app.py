@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from catboost import CatBoostClassifier
 import numpy as np
 from sklearn.model_selection import cross_val_score
@@ -113,7 +113,7 @@ input_row = pd.concat([input_df[numerical_features].reset_index(drop=True), inpu
 # Масштабирование числовых признаков
 scaler = StandardScaler()
 X[numerical_features] = scaler.fit_transform(X[numerical_features])
-input_row[numerical_features] = scaler.transform(input_row[numerical_features]) #применяем к входящим данным
+input_row[numerical_features] = scaler.transform(input_row[numerical_features]) # применяем к входящим данным
 
 with st.expander('Предобработка данных'):
     st.write('**Входные данные (новая строка)**')
@@ -126,60 +126,51 @@ with st.expander('Предобработка данных'):
 # --- Обучение модели ---
 st.subheader('Обучение модели')
 
-# Проверка типов данных
-st.write('Типы данных X_train и y_train:')
-st.write(X_train.dtypes)
-st.write(y_train.dtype)
+# Определение моделей с фиксированными гиперпараметрами
+rf_model = RandomForestClassifier(
+    bootstrap=True, max_depth=None, min_samples_leaf=1, min_samples_split=2, n_estimators=50, random_state=42
+)
+knn_model = KNeighborsClassifier(metric='manhattan', n_neighbors=5, weights='distance')
+catboost_model = CatBoostClassifier(depth=6, iterations=100, l2_leaf_reg=3, learning_rate=0.2, random_seed=42, logging_level='Silent')
 
-# Преобразуем y_train в одномерный массив, если это необходимо
-y_train = np.ravel(y_train)
+# Обучение моделей
+rf_model.fit(X_train, y_train)
+knn_model.fit(X_train, y_train)
+catboost_model.fit(X_train, y_train)
 
-# Задание параметров напрямую
-param_rf = {
-    'n_estimators': 50,
-    'max_depth': None,
-    'min_samples_leaf': 1,
-    'min_samples_split': 2,
-    'bootstrap': True
-}
-param_knn = {
-    'metric': 'manhattan',
-    'n_neighbors': 5,
-    'weights': 'distance'
-}
-param_catboost = {
-    'iterations': 100,
-    'learning_rate': 0.2,
-    'depth': 6,
-    'l2_leaf_reg': 3
-}
+# Прогнозирование
+prediction_rf = rf_model.predict(input_row)
+prediction_knn = knn_model.predict(input_row)
+prediction_catboost = catboost_model.predict(input_row)
 
-# Base models с заданными параметрами
-rf_model = RandomForestClassifier(**param_rf, random_state=42)
-knn_model = KNeighborsClassifier(**param_knn)
-catboost_model = CatBoostClassifier(**param_catboost, random_seed=42, logging_level='Silent')
+# Вывод результатов
+st.subheader('Результаты прогнозирования')
 
-# Словарь моделей
-models = {
-    'Random Forest': rf_model,
-    'K-Nearest Neighbors': knn_model,
-    'CatBoost': catboost_model
-}
+# Прогнозируемый тип погоды для каждой модели
+weather_types = label_encoder.classes_
 
-# Обучаем все модели
-for name, model in models.items():
-    model.fit(X_train, y_train)
+predicted_weather_rf = weather_types[prediction_rf[0]]
+predicted_weather_knn = weather_types[prediction_knn[0]]
+predicted_weather_catboost = weather_types[prediction_catboost[0]]
 
-# Оценка моделей по точности
-model_accuracies = {}
-for name, model in models.items():
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    model_accuracies[name] = accuracy
+st.write(f"**Random Forest Прогноз**: {predicted_weather_rf}")
+st.write(f"**K-Nearest Neighbors Прогноз**: {predicted_weather_knn}")
+st.write(f"**CatBoost Прогноз**: {predicted_weather_catboost}")
 
-# Найдем лучшую модель
-best_model_name = max(model_accuracies, key=model_accuracies.get)
-best_model = models[best_model_name]
-best_accuracy = model_accuracies[best_model_name]
+# Вероятности для каждого класса погоды
+prediction_proba_rf = rf_model.predict_proba(input_row)
+prediction_proba_knn = knn_model.predict_proba(input_row)
+prediction_proba_catboost = catboost_model.predict_proba(input_row)
 
-st.write(f"**Лучшая модель:** {best_model_name} с точностью {best_accuracy:.4f}")
+df_prediction_proba_rf = pd.DataFrame(prediction_proba_rf, columns=weather_types)
+df_prediction_proba_knn = pd.DataFrame(prediction_proba_knn, columns=weather_types)
+df_prediction_proba_catboost = pd.DataFrame(prediction_proba_catboost, columns=weather_types)
+
+st.write('**Вероятности для модели Random Forest:**')
+st.dataframe(df_prediction_proba_rf)
+
+st.write('**Вероятности для модели K-Nearest Neighbors:**')
+st.dataframe(df_prediction_proba_knn)
+
+st.write('**Вероятности для модели CatBoost:**')
+st.dataframe(df_prediction_proba_catboost)
